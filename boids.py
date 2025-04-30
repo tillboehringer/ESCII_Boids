@@ -77,7 +77,9 @@ class Boid:
         return steering * 0.1
 
     def draw(self, screen):
-        pygame.draw.circle(screen, (255, 255, 255), (int(self.position.x), int(self.position.y)), 4)
+        direction = self.velocity.normalize() * 10
+        pygame.draw.aaline(screen, (255, 255, 255), (self.position.x, self.position.y), (self.position.x + direction.x, self.position.y + direction.y))
+        pygame.draw.circle(screen, (255, 255, 255), (self.position.x, self.position.y), 4)
 
 # --- Main Loop ---
 def main():
@@ -98,7 +100,7 @@ def main():
     separation_text.disable()
     separation_slider = Slider(screen, 10, 110, 150, 10, min=0, max=3, step=0.1, initial=1)
 
-    on_off_toggle = Toggle(screen, 10, 130, 30, 10)
+    on_off_toggle = Toggle(screen, 10, 130, 30, 10, startOn = True)
 
     boids = [Boid() for _ in range(NUM_BOIDS)]
 
