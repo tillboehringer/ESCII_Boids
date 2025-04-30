@@ -1,9 +1,11 @@
 import pygame
+import pygame_widgets
+from pygame_widgets.slider import Slider
+from pygame_widgets.textbox import TextBox
+from pygame_widgets.toggle import Toggle
 import random
 import math
-import threading
 from scipy.spatial import KDTree
-import dearpygui.dearpygui as dpg
 
 WIDTH, HEIGHT = 1000, 800
 NUM_BOIDS = 150
@@ -77,40 +79,34 @@ class Boid:
     def draw(self, screen):
         pygame.draw.circle(screen, (255, 255, 255), (int(self.position.x), int(self.position.y)), 4)
 
-def setup_gui():
-    dpg.create_context()
-    dpg.create_viewport(title="Boid Controls", width=300, height=200)
-
-    with dpg.window(label="Controls", width=280, height=180):
-        dpg.add_slider_float(label="Alignment", default_value=1.0, min_value=0.0, max_value=3.0, callback=lambda s, a: alignment_weight.__setitem__(0, dpg.get_value(s)))
-        dpg.add_slider_float(label="Cohesion", default_value=1.0, min_value=0.0, max_value=3.0, callback=lambda s, a: cohesion_weight.__setitem__(0, dpg.get_value(s)))
-        dpg.add_slider_float(label="Separation", default_value=1.0, min_value=0.0, max_value=3.0,callback=lambda s, a: separation_weight.__setitem__(0, dpg.get_value(s)))
-
-    dpg.setup_dearpygui()
-    dpg.show_viewport()
-
-    while dpg.is_dearpygui_running():
-        dpg.render_dearpygui_frame()
-
-    dpg.destroy_context()
-
 # --- Main Loop ---
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Boids + DearPyGui")
+    pygame.display.set_caption("Boids")
     clock = pygame.time.Clock()
 
-    boids = [Boid() for _ in range(NUM_BOIDS)]
+    alignment_text = TextBox(screen, 10, 10, 150, 30, fontSize=15)
+    alignment_text.disable()
+    alignment_slider = Slider(screen, 10, 30, 150, 10, min=0, max=3, step=0.1, initial=1)
 
-    # Start GUI in a separate thread to not interfear with main loop
-    gui_thread = threading.Thread(target=setup_gui, daemon=True)
-    gui_thread.start()
+    cohesion_text = TextBox(screen, 10, 50, 150, 30, fontSize=15)
+    cohesion_text.disable()
+    cohesion_slider = Slider(screen, 10, 70, 150, 10, min=0, max=3, step=0.1, initial=1)
+
+    separation_text = TextBox(screen, 10, 90, 150, 30, fontSize=15)
+    separation_text.disable()
+    separation_slider = Slider(screen, 10, 110, 150, 10, min=0, max=3, step=0.1, initial=1)
+
+    on_off_toggle = Toggle(screen, 10, 130, 30, 10)
+
+    boids = [Boid() for _ in range(NUM_BOIDS)]
 
     running = True
     while running:
         screen.fill((30, 30, 30))
-        for event in pygame.event.get():
+        events = pygame.event.get()
+        for event in events:
             if event.type == pygame.QUIT:
                 running = False
 
@@ -118,12 +114,26 @@ def main():
         tree = KDTree(points)
 
         for i, boid in enumerate(boids):
-            idx = tree.query_ball_point(points[i], NEIGHBOR_RADIUS)
-            neighbors = [boids[j] for j in idx if j != i]
-            boid.apply_behaviors(neighbors)
-            boid.update()
+            if on_off_toggle.getValue():
+                idx = tree.query_ball_point(points[i], NEIGHBOR_RADIUS)
+                neighbors = [boids[j] for j in idx if j != i]
+                boid.apply_behaviors(neighbors)
+                boid.update()
             boid.draw(screen)
 
+        global alignment_weight
+        global cohesion_weight
+        global separation_weight
+
+        alignment_weight = [alignment_slider.getValue()]
+        cohesion_weight = [cohesion_slider.getValue()]
+        separation_weight = [separation_slider.getValue()]
+
+        alignment_text.setText(f'Alignment {alignment_weight[0]:.1f}')
+        cohesion_text.setText(f'Cohesion {cohesion_weight[0]:.1f}')
+        separation_text.setText(f'Separation {separation_weight[0]:.1f}')
+
+        pygame_widgets.update(events)
         pygame.display.flip()
         clock.tick(60)
 
