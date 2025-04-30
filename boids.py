@@ -7,7 +7,7 @@ import random
 import math
 from scipy.spatial import KDTree
 
-WIDTH, HEIGHT = 1000, 800
+WIDTH, HEIGHT = 1500, 1200
 NUM_BOIDS = 150
 MAX_SPEED = 4
 NEIGHBOR_RADIUS = 50
@@ -87,20 +87,34 @@ def main():
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Boids")
     clock = pygame.time.Clock()
+    
+    global alignment_weight
+    global cohesion_weight
+    global separation_weight
+    global NEIGHBOR_RADIUS
+    global SEPARATION_RADIUS
 
-    alignment_text = TextBox(screen, 10, 10, 150, 30, fontSize=15)
+    on_off_toggle = Toggle(screen, 10, 10, 30, 10, startOn = True)
+
+    alignment_text = TextBox(screen, 10, 30, 150, 30, fontSize=15)
     alignment_text.disable()
-    alignment_slider = Slider(screen, 10, 30, 150, 10, min=0, max=3, step=0.1, initial=1)
+    alignment_slider = Slider(screen, 10, 50, 150, 10, min=0, max=3, step=0.1, initial=1)
 
-    cohesion_text = TextBox(screen, 10, 50, 150, 30, fontSize=15)
+    cohesion_text = TextBox(screen, 10, 80, 150, 30, fontSize=15)
     cohesion_text.disable()
-    cohesion_slider = Slider(screen, 10, 70, 150, 10, min=0, max=3, step=0.1, initial=1)
+    cohesion_slider = Slider(screen, 10, 100, 150, 10, min=0, max=3, step=0.1, initial=1)
 
-    separation_text = TextBox(screen, 10, 90, 150, 30, fontSize=15)
+    separation_text = TextBox(screen, 10, 130, 150, 30, fontSize=15)
     separation_text.disable()
-    separation_slider = Slider(screen, 10, 110, 150, 10, min=0, max=3, step=0.1, initial=1)
+    separation_slider = Slider(screen, 10, 150, 150, 10, min=0, max=3, step=0.1, initial=1)
 
-    on_off_toggle = Toggle(screen, 10, 130, 30, 10, startOn = True)
+    neighbor_radius_text = TextBox(screen, 10, 180, 150, 30, fontSize=15)
+    neighbor_radius_text.disable()
+    neighbor_radius_slider = Slider(screen, 10, 200, 150, 10, min=1, max=200, step=1, initial=50)
+
+    separation_radius_text = TextBox(screen, 10, 230, 150, 30, fontSize=15)
+    separation_radius_text.disable()
+    separation_radius_slider = Slider(screen, 10, 250, 150, 10, min=1, max=100, step=1, initial=20)
 
     boids = [Boid() for _ in range(NUM_BOIDS)]
 
@@ -123,17 +137,18 @@ def main():
                 boid.update()
             boid.draw(screen)
 
-        global alignment_weight
-        global cohesion_weight
-        global separation_weight
 
         alignment_weight = [alignment_slider.getValue()]
         cohesion_weight = [cohesion_slider.getValue()]
         separation_weight = [separation_slider.getValue()]
+        NEIGHBOR_RADIUS = neighbor_radius_slider.getValue()
+        SEPARATION_RADIUS = separation_radius_slider.getValue()
 
         alignment_text.setText(f'Alignment {alignment_weight[0]:.1f}')
         cohesion_text.setText(f'Cohesion {cohesion_weight[0]:.1f}')
         separation_text.setText(f'Separation {separation_weight[0]:.1f}')
+        neighbor_radius_text.setText(f'Neigh_radius {NEIGHBOR_RADIUS}')
+        separation_radius_text.setText(f'Sep_radius {SEPARATION_RADIUS}')
 
         pygame_widgets.update(events)
         pygame.display.flip()
