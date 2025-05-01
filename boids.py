@@ -8,7 +8,7 @@ import math
 from scipy.spatial import KDTree
 
 WIDTH, HEIGHT = 1500, 1200
-NUM_BOIDS = 150
+NUM_BOIDS = 300
 MAX_SPEED = 4
 NEIGHBOR_RADIUS = 50
 SEPARATION_RADIUS = 20
@@ -96,6 +96,9 @@ def main():
 
     on_off_toggle = Toggle(screen, 10, 10, 30, 10, startOn = True)
 
+    frames_text = TextBox(screen, 50, 5, 90, 30, fontSize=15)
+    frames_text.disable()
+
     alignment_text = TextBox(screen, 10, 30, 150, 30, fontSize=15)
     alignment_text.disable()
     alignment_slider = Slider(screen, 10, 50, 150, 10, min=0, max=3, step=0.1, initial=1)
@@ -149,6 +152,7 @@ def main():
         separation_text.setText(f'Separation {separation_weight[0]:.1f}')
         neighbor_radius_text.setText(f'Neigh_radius {NEIGHBOR_RADIUS}')
         separation_radius_text.setText(f'Sep_radius {SEPARATION_RADIUS}')
+        frames_text.setText(f'FPS {clock.get_fps():.1f}')
 
         pygame_widgets.update(events)
         pygame.display.flip()
