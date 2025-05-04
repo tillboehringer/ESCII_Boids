@@ -7,22 +7,28 @@ import random
 import math
 from scipy.spatial import KDTree
 
+NUM_PREDATORS = 10
+NUM_PREY = 300
+
 WIDTH, HEIGHT = 1500, 1200
-NUM_BOIDS = 300
 MAX_SPEED = 4
 NEIGHBOR_RADIUS = 50
 SEPARATION_RADIUS = 20
+PREDATOR_RADIUS = 100
+PREY_RADIUS = 100
 
 alignment_weight = [1.0]
 cohesion_weight = [1.0]
 separation_weight = [1.0]
+predator_weight = [1.0]
+prey_weight = [1.0]
 
 class Boid:
-    def __init__(self):
-        self.position = pygame.math.Vector2(random.uniform(0, WIDTH), random.uniform(0, HEIGHT))
-        angle = random.uniform(0, 2 * math.pi)
+    def __init__(self, pos, angle, kind = 0):
+        self.position = pygame.math.Vector2(*pos)
         self.velocity = pygame.math.Vector2(math.cos(angle), math.sin(angle)) * MAX_SPEED
         self.acceleration = pygame.math.Vector2()
+        self.kind = kind # 0 = Predator, 1 = Prey
 
     def update(self):
         self.velocity += self.acceleration
@@ -39,21 +45,37 @@ class Boid:
         separate = self.separate(neighbors) * separation_weight[0]
         self.acceleration += align + cohere + separate
 
+    def apply_hunt(self, prey):
+        hunt = self.hunt(prey) * predator_weight[0]
+        self.acceleration += hunt
+
+    def apply_flee(self, predator):
+        flee = self.flee(predator) * prey_weight[0]
+        self.acceleration += flee
+
     def align(self, boids):
         steering = pygame.math.Vector2()
-        total = len(boids)
-        if total > 0:
-            for b in boids:
+        total = 0
+        for b in boids:
+            dist = self.position.distance_to(b.position)
+            if dist < NEIGHBOR_RADIUS and dist > 0:
                 steering += b.velocity
+                total += 1
+        if total > 0:
             steering /= total
             steering = steering.normalize() * MAX_SPEED - self.velocity
         return steering * 0.05
 
     def cohere(self, boids):
         steering = pygame.math.Vector2()
-        total = len(boids)
+        center = pygame.math.Vector2()
+        total = 0
+        for b in boids:
+            dist = self.position.distance_to(b.position)
+            if dist < NEIGHBOR_RADIUS and dist > 0:
+                center += b.position
+                total += 1
         if total > 0:
-            center = sum((b.position for b in boids), pygame.math.Vector2())
             center /= total
             desired = center - self.position
             desired = desired.normalize() * MAX_SPEED
@@ -76,10 +98,50 @@ class Boid:
                 steering = steering.normalize() * MAX_SPEED - self.velocity
         return steering * 0.1
 
+    def hunt(self, boids):
+        steering = pygame.math.Vector2()
+        center = pygame.math.Vector2()
+        total = 0
+        for b in boids:
+            dist = self.position.distance_to(b.position)
+            if dist < PREDATOR_RADIUS and dist > 0:
+                center += b.position
+                total += 1
+        if total > 0:
+            center /= total
+            desired = center - self.position
+            desired = desired.normalize() * MAX_SPEED
+            steering = desired - self.velocity
+        return steering * 0.1
+    
+    def flee(self, boids):
+        steering = pygame.math.Vector2()
+        center = pygame.math.Vector2()
+        total = 0
+        for b in boids:
+            dist = self.position.distance_to(b.position)
+            if dist < PREY_RADIUS and dist > 0:
+                center += b.position
+                total += 1
+        if total > 0:
+            center /= total
+            desired = center - self.position
+            desired = desired.normalize() * MAX_SPEED
+            steering = desired - self.velocity
+        return - steering * 0.1
+
+    def get_color(self):
+        if self.kind == 0:
+            return (255, 0, 0)
+        elif self.kind == 1:
+            return (0, 255, 0)
+        else:
+            return (255, 255, 255)
+
     def draw(self, screen):
         direction = self.velocity.normalize() * 10
-        pygame.draw.aaline(screen, (255, 255, 255), (self.position.x, self.position.y), (self.position.x + direction.x, self.position.y + direction.y))
-        pygame.draw.circle(screen, (255, 255, 255), (self.position.x, self.position.y), 4)
+        pygame.draw.aaline(screen, self.get_color(), (self.position.x, self.position.y), (self.position.x + direction.x, self.position.y + direction.y))
+        pygame.draw.circle(screen, self.get_color(), (self.position.x, self.position.y), 4)
 
 # --- Main Loop ---
 def main():
@@ -93,8 +155,12 @@ def main():
     global separation_weight
     global NEIGHBOR_RADIUS
     global SEPARATION_RADIUS
+    global PREDATOR_RADIUS
+    global PREY_RADIUS
+    global prey_weight
+    global predator_weight
 
-    on_off_toggle = Toggle(screen, 10, 10, 30, 10, startOn = True)
+    on_off_toggle = Toggle(screen, 10, 10, 30, 10, startOn = False)
 
     frames_text = TextBox(screen, 50, 5, 90, 30, fontSize=15)
     frames_text.disable()
@@ -119,7 +185,26 @@ def main():
     separation_radius_text.disable()
     separation_radius_slider = Slider(screen, 10, 250, 150, 10, min=1, max=100, step=1, initial=20)
 
-    boids = [Boid() for _ in range(NUM_BOIDS)]
+    predator_text = TextBox(screen, 170, 30, 150, 30, fontSize=15)
+    predator_text.disable()
+    predator_slider = Slider(screen, 170, 50, 150, 10, min=0, max=3, step=0.1, initial=1, handleColour=(255, 0, 0))
+
+    predator_radius_text = TextBox(screen, 170, 80, 150, 30, fontSize=15)
+    predator_radius_text.disable()
+    predator_radius_slider = Slider(screen, 170, 100, 150, 10, min=1, max=300, step=1, initial=100, handleColour=(255, 0, 0))
+
+    prey_text = TextBox(screen, 170, 130, 150, 30, fontSize=15)
+    prey_text.disable()
+    prey_slider = Slider(screen, 170, 150, 150, 10, min=0, max=3, step=0.1, initial=1, handleColour=(0, 255, 0))
+
+    prey_radius_text = TextBox(screen, 170, 180, 150, 30, fontSize=15)
+    prey_radius_text.disable()
+    prey_radius_slider = Slider(screen, 170, 200, 150, 10, min=1, max=300, step=1, initial=100, handleColour=(0, 255, 0))
+
+    # boids = [Boid(pos=(random.uniform(0, WIDTH), random.uniform(0, HEIGHT)), angle = random.uniform(0, 2 * math.pi), kind=random.randint(0,1)) for _ in range(NUM_BOIDS)]
+    boids = []
+    boids.extend([Boid(pos=(random.normalvariate(mu=WIDTH/4, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT/2, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), kind=0) for _ in range(NUM_PREDATORS)])
+    boids.extend([Boid(pos=(random.normalvariate(mu=WIDTH*3/4, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT/2, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), kind=1) for _ in range(NUM_PREY)])
 
     running = True
     while running:
@@ -132,10 +217,18 @@ def main():
         points = [(b.position.x, b.position.y) for b in boids]
         tree = KDTree(points)
 
+        RADIUS = max(NEIGHBOR_RADIUS, SEPARATION_RADIUS, PREDATOR_RADIUS, PREY_RADIUS)
+
         for i, boid in enumerate(boids):
             if on_off_toggle.getValue():
-                idx = tree.query_ball_point(points[i], NEIGHBOR_RADIUS)
-                neighbors = [boids[j] for j in idx if j != i]
+                idx = tree.query_ball_point(points[i], RADIUS)
+                neighbors = [boids[j] for j in idx if j != i and boids[j].kind == boid.kind]
+                if boid.kind == 0:
+                    prey = [boids[j] for j in idx if boids[j].kind == 1]
+                    boid.apply_hunt(prey)
+                if boid.kind == 1:
+                    predator = [boids[j] for j in idx if boids[j].kind == 0]
+                    boid.apply_flee(predator)
                 boid.apply_behaviors(neighbors)
                 boid.update()
             boid.draw(screen)
@@ -153,6 +246,16 @@ def main():
         neighbor_radius_text.setText(f'Neigh_radius {NEIGHBOR_RADIUS}')
         separation_radius_text.setText(f'Sep_radius {SEPARATION_RADIUS}')
         frames_text.setText(f'FPS {clock.get_fps():.1f}')
+
+        predator_weight = [predator_slider.getValue()]
+        predator_text.setText(f'Hunt {predator_weight[0]:.1f}')
+        PREDATOR_RADIUS = predator_radius_slider.getValue()
+        predator_radius_text.setText(f'Hunt_radius {PREDATOR_RADIUS}')
+
+        prey_weight = [prey_slider.getValue()]
+        prey_text.setText(f'Flee {prey_weight[0]:.1f}')
+        PREY_RADIUS = prey_radius_slider.getValue()
+        prey_radius_text.setText(f'Flee_radius {PREY_RADIUS}')
 
         pygame_widgets.update(events)
         pygame.display.flip()
