@@ -7,9 +7,12 @@ import random
 import math
 from scipy.spatial import KDTree
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 NUM_BOIDS_PER_KIND = 100
 
-WIDTH, HEIGHT = 1500, 1200
+WIDTH, HEIGHT = 1200, 1200
 MAX_SPEED = 4
 NEIGHBOR_RADIUS = 50
 SEPARATION_RADIUS = 20
@@ -172,6 +175,7 @@ def main():
     global PREY_RADIUS
     global prey_weight
     global predator_weight
+    global boids_count
 
     on_off_toggle = Toggle(screen, 10, 10, 30, 10, startOn = False)
 
@@ -227,7 +231,18 @@ def main():
 
     boids.extend([Boid(pos=(random.normalvariate(mu=WIDTH/2, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT*1/3, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), kind=2) for _ in range(NUM_BOIDS_PER_KIND)])
 
+    NUM_FRAMES_GRAPH = 180
+    boids_count = np.zeros((KINDS_NUM, NUM_FRAMES_GRAPH))
+    x = np.arange(NUM_FRAMES_GRAPH)
+
+    fig, ax = plt.subplots()
+    ax.stackplot(x, boids_count)
+    ax.set_ybound((0,NUM_BOIDS_PER_KIND*KINDS_NUM))
+    ax.set_xbound((0, NUM_FRAMES_GRAPH))
+    fig.show()
+
     running = True
+    loop_counter = 0
     while running:
         screen.fill((30, 30, 30))
         events = pygame.event.get()
@@ -240,7 +255,7 @@ def main():
 
         RADIUS = max(NEIGHBOR_RADIUS, SEPARATION_RADIUS, PREDATOR_RADIUS, PREY_RADIUS)
 
-        boids_num = [0, 0, 0]
+        boids_num = np.array([0, 0, 0])
 
         for i, boid in enumerate(boids):
             if on_off_toggle.getValue():
@@ -288,9 +303,21 @@ def main():
         CHANGE_RADIUS = change_radius_slider.getValue()
         change_radius_text.setText(f'Change_rad {CHANGE_RADIUS}')
 
+        boids_count = np.append(boids_count, np.array([boids_num]).T, axis=1)[:, -NUM_FRAMES_GRAPH:]
+        # print(boids_count)
+        if loop_counter%20 == 0:
+            ax.clear()
+            # for artist in plt.gca().collections:
+            #     artist.remove()
+            ax.stackplot(x, boids_count, colors=[(1, 0, 0), (0, 1, 0), (51/255, 102/255, 255/255)])
+            # ax.set_ybound((0,NUM_BOIDS_PER_KIND*KINDS_NUM))
+            # ax.set_xbound((0, NUM_FRAMES_GRAPH))
+            fig.canvas.draw()
+
+
         pygame_widgets.update(events)
         pygame.display.flip()
-        print(boids_num)
+        loop_counter += 1
         clock.tick(60)
 
     pygame.quit()
