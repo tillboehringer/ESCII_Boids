@@ -7,22 +7,23 @@ import random
 import math
 from scipy.spatial import KDTree
 
-NUM_PREDATORS = 10
-NUM_PREY = 300
+NUM_BOIDS_PER_KIND = 100
 
 WIDTH, HEIGHT = 1500, 1200
 MAX_SPEED = 4
 NEIGHBOR_RADIUS = 50
 SEPARATION_RADIUS = 20
 PREDATOR_RADIUS = 100
-PREY_RADIUS = 100
+PREY_RADIUS = 60
 CHANGE_RADIUS = 5
 
 alignment_weight = [1.0]
 cohesion_weight = [1.0]
 separation_weight = [1.0]
-predator_weight = [1.0]
-prey_weight = [1.0]
+predator_weight = [1.2]
+prey_weight = [0.6]
+
+KINDS_NUM = 3 # 0 = Rock, 1 = Scissors, 2 = Paper
 
 class Boid:
     def __init__(self, pos, angle, kind = 0):
@@ -139,11 +140,16 @@ class Boid:
 
     def get_color(self):
         if self.kind == 0:
+            # return (169, 169, 169)
             return (255, 0, 0)
         elif self.kind == 1:
+            # return (153, 255, 153)
             return (0, 255, 0)
+        elif self.kind == 2:
+            # return (255, 255, 255)
+            return (51, 102, 255)
         else:
-            return (255, 255, 255)
+            return (255, 0, 0)
 
     def draw(self, screen):
         direction = self.velocity.normalize() * 10
@@ -194,7 +200,7 @@ def main():
 
     predator_text = TextBox(screen, 170, 30, 150, 30, fontSize=15)
     predator_text.disable()
-    predator_slider = Slider(screen, 170, 50, 150, 10, min=0, max=3, step=0.1, initial=1, handleColour=(255, 0, 0))
+    predator_slider = Slider(screen, 170, 50, 150, 10, min=0, max=3, step=0.1, initial=1.2, handleColour=(255, 0, 0))
 
     predator_radius_text = TextBox(screen, 170, 80, 150, 30, fontSize=15)
     predator_radius_text.disable()
@@ -202,11 +208,11 @@ def main():
 
     prey_text = TextBox(screen, 170, 130, 150, 30, fontSize=15)
     prey_text.disable()
-    prey_slider = Slider(screen, 170, 150, 150, 10, min=0, max=3, step=0.1, initial=1, handleColour=(0, 255, 0))
+    prey_slider = Slider(screen, 170, 150, 150, 10, min=0, max=3, step=0.1, initial=0.6, handleColour=(0, 255, 0))
 
     prey_radius_text = TextBox(screen, 170, 180, 150, 30, fontSize=15)
     prey_radius_text.disable()
-    prey_radius_slider = Slider(screen, 170, 200, 150, 10, min=1, max=300, step=1, initial=100, handleColour=(0, 255, 0))
+    prey_radius_slider = Slider(screen, 170, 200, 150, 10, min=1, max=300, step=1, initial=60, handleColour=(0, 255, 0))
 
     change_radius_text = TextBox(screen, 170, 230, 150, 30, fontSize=15)
     change_radius_text.disable()
@@ -214,8 +220,12 @@ def main():
 
     # boids = [Boid(pos=(random.uniform(0, WIDTH), random.uniform(0, HEIGHT)), angle = random.uniform(0, 2 * math.pi), kind=random.randint(0,1)) for _ in range(NUM_BOIDS)]
     boids = []
-    boids.extend([Boid(pos=(random.normalvariate(mu=WIDTH/4, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT/2, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), kind=0) for _ in range(NUM_PREDATORS)])
-    boids.extend([Boid(pos=(random.normalvariate(mu=WIDTH*3/4, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT/2, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), kind=1) for _ in range(NUM_PREY)])
+
+    boids.extend([Boid(pos=(random.normalvariate(mu=WIDTH/5, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT*2/3, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), kind=0) for _ in range(NUM_BOIDS_PER_KIND)])
+ 
+    boids.extend([Boid(pos=(random.normalvariate(mu=WIDTH*4/5, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT*2/3, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), kind=1) for _ in range(NUM_BOIDS_PER_KIND)])
+
+    boids.extend([Boid(pos=(random.normalvariate(mu=WIDTH/2, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT*1/3, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), kind=2) for _ in range(NUM_BOIDS_PER_KIND)])
 
     running = True
     while running:
@@ -230,23 +240,24 @@ def main():
 
         RADIUS = max(NEIGHBOR_RADIUS, SEPARATION_RADIUS, PREDATOR_RADIUS, PREY_RADIUS)
 
-        pred_num = 0
-        prey_num = 0
+        boids_num = [0, 0, 0]
 
         for i, boid in enumerate(boids):
             if on_off_toggle.getValue():
                 idx = tree.query_ball_point(points[i], RADIUS)
+
                 neighbors = [boids[j] for j in idx if j != i and boids[j].kind == boid.kind]
-                if boid.kind == 0:
-                    pred_num += 1
-                    prey = [boids[j] for j in idx if boids[j].kind == 1]
-                    boid.apply_hunt(prey)
-                if boid.kind == 1:
-                    prey_num += 1
-                    predator = [boids[j] for j in idx if boids[j].kind == 0]
-                    boid.apply_flee(predator)
-                    boid.change_kind(predator)
                 boid.apply_behaviors(neighbors)
+
+                boids_num[boid.kind] += 1
+
+                prey = [boids[j] for j in idx if boids[j].kind == (boid.kind+1)%KINDS_NUM]
+                boid.apply_hunt(prey)
+
+                predator = [boids[j] for j in idx if boids[j].kind == (boid.kind-1)%KINDS_NUM]
+                boid.apply_flee(predator)
+                boid.change_kind(predator)
+
                 boid.update()
             boid.draw(screen)
 
@@ -265,12 +276,12 @@ def main():
         frames_text.setText(f'FPS {clock.get_fps():.1f}')
 
         predator_weight = [predator_slider.getValue()]
-        predator_text.setText(f'Hunt {predator_weight[0]:.1f}  ({pred_num})')
+        predator_text.setText(f'Hunt {predator_weight[0]:.1f}')
         PREDATOR_RADIUS = predator_radius_slider.getValue()
         predator_radius_text.setText(f'Hunt_radius {PREDATOR_RADIUS}')
 
         prey_weight = [prey_slider.getValue()]
-        prey_text.setText(f'Flee {prey_weight[0]:.1f}  ({prey_num})')
+        prey_text.setText(f'Flee {prey_weight[0]:.1f}')
         PREY_RADIUS = prey_radius_slider.getValue()
         prey_radius_text.setText(f'Flee_radius {PREY_RADIUS}')
 
@@ -279,6 +290,7 @@ def main():
 
         pygame_widgets.update(events)
         pygame.display.flip()
+        print(boids_num)
         clock.tick(60)
 
     pygame.quit()
