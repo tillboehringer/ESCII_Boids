@@ -304,7 +304,8 @@ def main():
         change_radius_text.setText(f'Change_rad {CHANGE_RADIUS}')
 
         boids_count = np.append(boids_count, np.array([boids_num]).T, axis=1)[:, -NUM_FRAMES_GRAPH:]
-        # print(boids_count)
+        if on_off_toggle.getValue():
+            print(boids_num)
         if loop_counter%20 == 0:
             ax.clear()
             # for artist in plt.gca().collections:
