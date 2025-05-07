@@ -16,6 +16,7 @@ NEIGHBOR_RADIUS = 50
 SEPARATION_RADIUS = 20
 PREDATOR_RADIUS = 100
 PREY_RADIUS = 100
+CHANGE_RADIUS = 5
 
 alignment_weight = [1.0]
 cohesion_weight = [1.0]
@@ -53,6 +54,12 @@ class Boid:
         flee = self.flee(predator) * prey_weight[0]
         self.acceleration += flee
 
+    def change_kind(self, boids):
+        for b in boids:
+            dist = self.position.distance_to(b.position)
+            if dist <= CHANGE_RADIUS:
+                self.kind = b.kind
+        
     def align(self, boids):
         steering = pygame.math.Vector2()
         total = 0
@@ -201,6 +208,10 @@ def main():
     prey_radius_text.disable()
     prey_radius_slider = Slider(screen, 170, 200, 150, 10, min=1, max=300, step=1, initial=100, handleColour=(0, 255, 0))
 
+    change_radius_text = TextBox(screen, 170, 230, 150, 30, fontSize=15)
+    change_radius_text.disable()
+    change_radius_slider = Slider(screen, 170, 250, 150, 10, min=1, max=50, step=1, initial=5)
+
     # boids = [Boid(pos=(random.uniform(0, WIDTH), random.uniform(0, HEIGHT)), angle = random.uniform(0, 2 * math.pi), kind=random.randint(0,1)) for _ in range(NUM_BOIDS)]
     boids = []
     boids.extend([Boid(pos=(random.normalvariate(mu=WIDTH/4, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT/2, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), kind=0) for _ in range(NUM_PREDATORS)])
@@ -219,16 +230,22 @@ def main():
 
         RADIUS = max(NEIGHBOR_RADIUS, SEPARATION_RADIUS, PREDATOR_RADIUS, PREY_RADIUS)
 
+        pred_num = 0
+        prey_num = 0
+
         for i, boid in enumerate(boids):
             if on_off_toggle.getValue():
                 idx = tree.query_ball_point(points[i], RADIUS)
                 neighbors = [boids[j] for j in idx if j != i and boids[j].kind == boid.kind]
                 if boid.kind == 0:
+                    pred_num += 1
                     prey = [boids[j] for j in idx if boids[j].kind == 1]
                     boid.apply_hunt(prey)
                 if boid.kind == 1:
+                    prey_num += 1
                     predator = [boids[j] for j in idx if boids[j].kind == 0]
                     boid.apply_flee(predator)
+                    boid.change_kind(predator)
                 boid.apply_behaviors(neighbors)
                 boid.update()
             boid.draw(screen)
@@ -248,14 +265,17 @@ def main():
         frames_text.setText(f'FPS {clock.get_fps():.1f}')
 
         predator_weight = [predator_slider.getValue()]
-        predator_text.setText(f'Hunt {predator_weight[0]:.1f}')
+        predator_text.setText(f'Hunt {predator_weight[0]:.1f}  ({pred_num})')
         PREDATOR_RADIUS = predator_radius_slider.getValue()
         predator_radius_text.setText(f'Hunt_radius {PREDATOR_RADIUS}')
 
         prey_weight = [prey_slider.getValue()]
-        prey_text.setText(f'Flee {prey_weight[0]:.1f}')
+        prey_text.setText(f'Flee {prey_weight[0]:.1f}  ({prey_num})')
         PREY_RADIUS = prey_radius_slider.getValue()
         prey_radius_text.setText(f'Flee_radius {PREY_RADIUS}')
+
+        CHANGE_RADIUS = change_radius_slider.getValue()
+        change_radius_text.setText(f'Change_rad {CHANGE_RADIUS}')
 
         pygame_widgets.update(events)
         pygame.display.flip()
