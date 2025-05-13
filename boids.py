@@ -9,8 +9,9 @@ from scipy.spatial import KDTree
 
 import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib as mpl
 
-NUM_BOIDS_PER_KIND = 100
+import icecream as ic
 
 WIDTH, HEIGHT = 1200, 1200
 MAX_SPEED = 4
@@ -26,7 +27,14 @@ separation_weight = [1.0]
 predator_weight = [1.2]
 prey_weight = [0.6]
 
-KINDS_NUM = 3 # 0 = Rock, 1 = Scissors, 2 = Paper
+KINDS_NUM = 5
+NUM_BOIDS_PER_KIND = 60
+
+cmap = mpl.colormaps['jet']
+colors_rgba = cmap(np.linspace(0, 1, KINDS_NUM))
+# print(colors_rgba)
+colors = [tuple(int(c*255) for c in color) for color in colors_rgba[:, :3]]
+# print(colors)
 
 class Boid:
     def __init__(self, pos, angle, kind = 0):
@@ -142,17 +150,7 @@ class Boid:
         return - steering * 0.1
 
     def get_color(self):
-        if self.kind == 0:
-            # return (169, 169, 169)
-            return (255, 0, 0)
-        elif self.kind == 1:
-            # return (153, 255, 153)
-            return (0, 255, 0)
-        elif self.kind == 2:
-            # return (255, 255, 255)
-            return (51, 102, 255)
-        else:
-            return (255, 0, 0)
+        return colors[self.kind]
 
     def draw(self, screen):
         direction = self.velocity.normalize() * 10
@@ -224,11 +222,8 @@ def main():
 
     boids = []
 
-    boids.extend([Boid(pos=(random.normalvariate(mu=WIDTH/5, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT*2/3, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), kind=0) for _ in range(NUM_BOIDS_PER_KIND)])
- 
-    boids.extend([Boid(pos=(random.normalvariate(mu=WIDTH*4/5, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT*2/3, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), kind=1) for _ in range(NUM_BOIDS_PER_KIND)])
-
-    boids.extend([Boid(pos=(random.normalvariate(mu=WIDTH/2, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT*1/3, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), kind=2) for _ in range(NUM_BOIDS_PER_KIND)])
+    for kind in range(KINDS_NUM):
+        boids.extend([Boid(pos=(random.uniform(0, WIDTH), random.uniform(0, HEIGHT)), angle = random.uniform(0, 2 * math.pi), kind=kind) for _ in range(NUM_BOIDS_PER_KIND)])
 
     NUM_FRAMES_GRAPH = 180
     boids_count = np.zeros((KINDS_NUM, NUM_FRAMES_GRAPH))
@@ -243,7 +238,7 @@ def main():
     running = True
     loop_counter = 0
     while running:
-        screen.fill((30, 30, 30))
+        screen.fill((150, 150, 150))
         events = pygame.event.get()
         for event in events:
             if event.type == pygame.QUIT:
@@ -254,21 +249,26 @@ def main():
 
         RADIUS = max(NEIGHBOR_RADIUS, SEPARATION_RADIUS, PREDATOR_RADIUS, PREY_RADIUS)
 
-        boids_num = np.array([0, 0, 0])
+        boids_num = np.zeros(KINDS_NUM)
 
         for i, boid in enumerate(boids):
             if on_off_toggle.getValue():
                 idx = tree.query_ball_point(points[i], RADIUS)
+
+                prey_kinds = [(boid.kind+n+1)%KINDS_NUM for n in range(int((KINDS_NUM-1)/2))]
+                predator_kinds = [(boid.kind-n-1)%KINDS_NUM for n in range(int((KINDS_NUM-1)/2))]
+
+                # print(boid.kind, prey_kinds, predator_kinds)
 
                 neighbors = [boids[j] for j in idx if j != i and boids[j].kind == boid.kind]
                 boid.apply_behaviors(neighbors)
 
                 boids_num[boid.kind] += 1
 
-                prey = [boids[j] for j in idx if boids[j].kind == (boid.kind+1)%KINDS_NUM]
+                prey = [boids[j] for j in idx if boids[j].kind in prey_kinds]
                 boid.apply_hunt(prey)
 
-                predator = [boids[j] for j in idx if boids[j].kind == (boid.kind-1)%KINDS_NUM]
+                predator = [boids[j] for j in idx if boids[j].kind in predator_kinds]
                 boid.apply_flee(predator)
                 boid.change_kind(predator)
 
@@ -307,7 +307,7 @@ def main():
             print(boids_num, loop_counter)
         if loop_counter%20 == 0 and on_off_toggle.getValue():
             ax.clear()
-            ax.stackplot(x, boids_count, colors=[(1, 0, 0), (0, 1, 0), (51/255, 102/255, 255/255)])
+            ax.stackplot(x, boids_count, colors=colors_rgba)
             fig.canvas.draw()
 
 
