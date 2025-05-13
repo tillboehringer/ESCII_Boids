@@ -23,8 +23,8 @@ CHANGE_RADIUS = 5
 alignment_weight = [1.0]
 cohesion_weight = [1.0]
 separation_weight = [1.0]
-predator_weight = [1.2]
-prey_weight = [0.6]
+predator_weight = [1.2, 1.2, 1.2]
+prey_weight = [0.6, 0.6, 0.6]
 
 KINDS_NUM = 3 # 0 = Rock, 1 = Scissors, 2 = Paper
 
@@ -33,7 +33,7 @@ class Boid:
         self.position = pygame.math.Vector2(*pos)
         self.velocity = pygame.math.Vector2(math.cos(angle), math.sin(angle)) * MAX_SPEED
         self.acceleration = pygame.math.Vector2()
-        self.kind = kind # 0 = Predator, 1 = Prey
+        self.kind = kind
 
     def update(self):
         self.velocity += self.acceleration
@@ -51,11 +51,11 @@ class Boid:
         self.acceleration += align + cohere + separate
 
     def apply_hunt(self, prey):
-        hunt = self.hunt(prey) * predator_weight[0]
+        hunt = self.hunt(prey) * predator_weight[self.kind]
         self.acceleration += hunt
 
     def apply_flee(self, predator):
-        flee = self.flee(predator) * prey_weight[0]
+        flee = self.flee(predator) * prey_weight[self.kind]
         self.acceleration += flee
 
     def change_kind(self, boids):
@@ -182,45 +182,36 @@ def main():
     frames_text = TextBox(screen, 50, 5, 90, 30, fontSize=15)
     frames_text.disable()
 
-    alignment_text = TextBox(screen, 10, 30, 150, 30, fontSize=15)
-    alignment_text.disable()
-    alignment_slider = Slider(screen, 10, 50, 150, 10, min=0, max=3, step=0.1, initial=1)
+    min_value = 0.1
+    max_value = 5.0
 
-    cohesion_text = TextBox(screen, 10, 80, 150, 30, fontSize=15)
-    cohesion_text.disable()
-    cohesion_slider = Slider(screen, 10, 100, 150, 10, min=0, max=3, step=0.1, initial=1)
+    initial_prey = 0.6
+    initial_predator = 1.2
 
-    separation_text = TextBox(screen, 10, 130, 150, 30, fontSize=15)
-    separation_text.disable()
-    separation_slider = Slider(screen, 10, 150, 150, 10, min=0, max=3, step=0.1, initial=1)
+    predator_0_text = TextBox(screen, 10, 30, 150, 30, fontSize=15)
+    predator_0_text.disable()
+    predator_0_slider = Slider(screen, 10, 50, 150, 10, min=min_value, max=max_value, step=0.1, initial=initial_predator, handleColour=(255, 0, 0))
 
-    neighbor_radius_text = TextBox(screen, 10, 180, 150, 30, fontSize=15)
-    neighbor_radius_text.disable()
-    neighbor_radius_slider = Slider(screen, 10, 200, 150, 10, min=1, max=200, step=1, initial=50)
+    prey_0_text = TextBox(screen, 170, 30, 150, 30, fontSize=15)
+    prey_0_text.disable()
+    prey_0_slider = Slider(screen, 170, 50, 150, 10, min=min_value, max=max_value, step=0.1, initial=initial_prey, handleColour=(255, 0, 0))
 
-    separation_radius_text = TextBox(screen, 10, 230, 150, 30, fontSize=15)
-    separation_radius_text.disable()
-    separation_radius_slider = Slider(screen, 10, 250, 150, 10, min=1, max=100, step=1, initial=20)
+    predator_1_text = TextBox(screen, 10, 80, 150, 30, fontSize=15)
+    predator_1_text.disable()
+    predator_1_slider = Slider(screen, 10, 100, 150, 10, min=min_value, max=max_value, step=0.1, initial=initial_predator, handleColour=(0, 255, 0))
 
-    predator_text = TextBox(screen, 170, 30, 150, 30, fontSize=15)
-    predator_text.disable()
-    predator_slider = Slider(screen, 170, 50, 150, 10, min=0, max=3, step=0.1, initial=1.2, handleColour=(255, 0, 0))
+    prey_1_text = TextBox(screen, 170, 80, 150, 30, fontSize=15)
+    prey_1_text.disable()
+    prey_1_slider = Slider(screen, 170, 100, 150, 10, min=min_value, max=max_value, step=0.1, initial=initial_prey, handleColour=(0, 255, 0))
 
-    predator_radius_text = TextBox(screen, 170, 80, 150, 30, fontSize=15)
-    predator_radius_text.disable()
-    predator_radius_slider = Slider(screen, 170, 100, 150, 10, min=1, max=300, step=1, initial=100, handleColour=(255, 0, 0))
+    predator_2_text = TextBox(screen, 10, 130, 150, 30, fontSize=15)
+    predator_2_text.disable()
+    predator_2_slider = Slider(screen, 10, 150, 150, 10, min=min_value, max=max_value, step=0.1, initial=initial_predator, handleColour=(51, 102, 255))
 
-    prey_text = TextBox(screen, 170, 130, 150, 30, fontSize=15)
-    prey_text.disable()
-    prey_slider = Slider(screen, 170, 150, 150, 10, min=0, max=3, step=0.1, initial=0.6, handleColour=(0, 255, 0))
+    prey_2_text = TextBox(screen, 170, 130, 150, 30, fontSize=15)
+    prey_2_text.disable()
+    prey_2_slider = Slider(screen, 170, 150, 150, 10, min=min_value, max=max_value, step=0.1, initial=initial_prey, handleColour=(51, 102, 255))
 
-    prey_radius_text = TextBox(screen, 170, 180, 150, 30, fontSize=15)
-    prey_radius_text.disable()
-    prey_radius_slider = Slider(screen, 170, 200, 150, 10, min=1, max=300, step=1, initial=60, handleColour=(0, 255, 0))
-
-    change_radius_text = TextBox(screen, 170, 230, 150, 30, fontSize=15)
-    change_radius_text.disable()
-    change_radius_slider = Slider(screen, 170, 250, 150, 10, min=1, max=50, step=1, initial=5)
 
     boids = []
 
@@ -276,31 +267,19 @@ def main():
             boid.draw(screen)
 
 
-        alignment_weight = [alignment_slider.getValue()]
-        cohesion_weight = [cohesion_slider.getValue()]
-        separation_weight = [separation_slider.getValue()]
-        NEIGHBOR_RADIUS = neighbor_radius_slider.getValue()
-        SEPARATION_RADIUS = separation_radius_slider.getValue()
+        predator_weight = [predator_0_slider.getValue(), predator_1_slider.getValue(), predator_2_slider.getValue()]
 
-        alignment_text.setText(f'Alignment {alignment_weight[0]:.1f}')
-        cohesion_text.setText(f'Cohesion {cohesion_weight[0]:.1f}')
-        separation_text.setText(f'Separation {separation_weight[0]:.1f}')
-        neighbor_radius_text.setText(f'Neigh_radius {NEIGHBOR_RADIUS}')
-        separation_radius_text.setText(f'Sep_radius {SEPARATION_RADIUS}')
+        predator_0_text.setText(f'Hunt {predator_weight[0]:.1f}')
+        predator_1_text.setText(f'Hunt {predator_weight[1]:.1f}')
+        predator_2_text.setText(f'Hunt {predator_weight[2]:.1f}')
+
+
+        prey_weight = [prey_0_slider.getValue(), prey_1_slider.getValue(), prey_2_slider.getValue()]
+        prey_0_text.setText(f'Flee {prey_weight[0]:.1f}')
+        prey_1_text.setText(f'Flee {prey_weight[1]:.1f}')
+        prey_2_text.setText(f'Flee {prey_weight[2]:.1f}')
+
         frames_text.setText(f'FPS {clock.get_fps():.1f}')
-
-        predator_weight = [predator_slider.getValue()]
-        predator_text.setText(f'Hunt {predator_weight[0]:.1f}')
-        PREDATOR_RADIUS = predator_radius_slider.getValue()
-        predator_radius_text.setText(f'Hunt_radius {PREDATOR_RADIUS}')
-
-        prey_weight = [prey_slider.getValue()]
-        prey_text.setText(f'Flee {prey_weight[0]:.1f}')
-        PREY_RADIUS = prey_radius_slider.getValue()
-        prey_radius_text.setText(f'Flee_radius {PREY_RADIUS}')
-
-        CHANGE_RADIUS = change_radius_slider.getValue()
-        change_radius_text.setText(f'Change_rad {CHANGE_RADIUS}')
 
         if on_off_toggle.getValue():
             boids_count = np.append(boids_count, np.array([boids_num]).T, axis=1)[:, -NUM_FRAMES_GRAPH:]
