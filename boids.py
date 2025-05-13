@@ -222,7 +222,6 @@ def main():
     change_radius_text.disable()
     change_radius_slider = Slider(screen, 170, 250, 150, 10, min=1, max=50, step=1, initial=5)
 
-    # boids = [Boid(pos=(random.uniform(0, WIDTH), random.uniform(0, HEIGHT)), angle = random.uniform(0, 2 * math.pi), kind=random.randint(0,1)) for _ in range(NUM_BOIDS)]
     boids = []
 
     boids.extend([Boid(pos=(random.normalvariate(mu=WIDTH/5, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT*2/3, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), kind=0) for _ in range(NUM_BOIDS_PER_KIND)])
@@ -303,16 +302,12 @@ def main():
         CHANGE_RADIUS = change_radius_slider.getValue()
         change_radius_text.setText(f'Change_rad {CHANGE_RADIUS}')
 
-        boids_count = np.append(boids_count, np.array([boids_num]).T, axis=1)[:, -NUM_FRAMES_GRAPH:]
         if on_off_toggle.getValue():
-            print(boids_num)
-        if loop_counter%20 == 0:
+            boids_count = np.append(boids_count, np.array([boids_num]).T, axis=1)[:, -NUM_FRAMES_GRAPH:]
+            print(boids_num, loop_counter)
+        if loop_counter%20 == 0 and on_off_toggle.getValue():
             ax.clear()
-            # for artist in plt.gca().collections:
-            #     artist.remove()
             ax.stackplot(x, boids_count, colors=[(1, 0, 0), (0, 1, 0), (51/255, 102/255, 255/255)])
-            # ax.set_ybound((0,NUM_BOIDS_PER_KIND*KINDS_NUM))
-            # ax.set_xbound((0, NUM_FRAMES_GRAPH))
             fig.canvas.draw()
 
 
