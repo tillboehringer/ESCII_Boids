@@ -6,29 +6,21 @@ from pygame_widgets.toggle import Toggle
 import random
 import math
 from scipy.spatial import KDTree
+import parameters
+from parameters import *
+import numpy as np
+from matplotlib import pyplot as plt
 
-NUM_PREDATORS = 10
-NUM_PREY = 300
 
-WIDTH, HEIGHT = 1500, 1200
-MAX_SPEED = 4
-NEIGHBOR_RADIUS = 50
-SEPARATION_RADIUS = 20
-PREDATOR_RADIUS = 100
-PREY_RADIUS = 100
 
-alignment_weight = [1.0]
-cohesion_weight = [1.0]
-separation_weight = [1.0]
-predator_weight = [1.0]
-prey_weight = [1.0]
-
-class Boid:
-    def __init__(self, pos, angle, kind = 0):
+class Wolf:
+    def __init__(self, pos, angle, ID, kind=0, saturation=init_sat_wolf):
         self.position = pygame.math.Vector2(*pos)
         self.velocity = pygame.math.Vector2(math.cos(angle), math.sin(angle)) * MAX_SPEED
         self.acceleration = pygame.math.Vector2()
-        self.kind = kind # 0 = Predator, 1 = Prey
+        self.kind = kind  # 0 = Predator, 1 = Prey
+        self.saturation = saturation
+        self.ID = ID
 
     def update(self):
         self.velocity += self.acceleration
@@ -39,6 +31,15 @@ class Boid:
         self.position.x %= WIDTH
         self.position.y %= HEIGHT
 
+    def eat(self, boids):
+        eaten_sheep_pos = []
+        for i, b in enumerate(boids):
+            dist = self.position.distance_to(b.position)
+            if dist <= EAT_RADIUS:
+                self.saturation += wolf_eat_food
+                eaten_sheep_pos.append(b.ID)
+        return eaten_sheep_pos
+
     def apply_behaviors(self, neighbors):
         align = self.align(neighbors) * alignment_weight[0]
         cohere = self.cohere(neighbors) * cohesion_weight[0]
@@ -48,10 +49,6 @@ class Boid:
     def apply_hunt(self, prey):
         hunt = self.hunt(prey) * predator_weight[0]
         self.acceleration += hunt
-
-    def apply_flee(self, predator):
-        flee = self.flee(predator) * prey_weight[0]
-        self.acceleration += flee
 
     def align(self, boids):
         steering = pygame.math.Vector2()
@@ -113,6 +110,94 @@ class Boid:
             desired = desired.normalize() * MAX_SPEED
             steering = desired - self.velocity
         return steering * 0.1
+
+    def get_color(self):
+        if self.kind == 0:
+            return (255, 0, 0)
+        elif self.kind == 1:
+            return (0, 255, 0)
+        else:
+            return (255, 255, 255)
+
+    def draw(self, screen):
+        direction = self.velocity.normalize() * 10
+        pygame.draw.aaline(screen, self.get_color(), (self.position.x, self.position.y),
+                           (self.position.x + direction.x, self.position.y + direction.y))
+        pygame.draw.circle(screen, self.get_color(), (self.position.x, self.position.y), 4)
+
+
+class Sheep:
+    def __init__(self, pos, angle, ID, kind = 1, saturation=init_sat_sheep):
+        self.position = pygame.math.Vector2(*pos)
+        self.velocity = pygame.math.Vector2(math.cos(angle), math.sin(angle)) * MAX_SPEED
+        self.acceleration = pygame.math.Vector2()
+        self.kind = kind # 0 = Predator, 1 = Prey
+        self.saturation = saturation
+        self.ID = ID
+
+    def update(self):
+        self.velocity += self.acceleration
+        if self.velocity.length() > MAX_SPEED:
+            self.velocity.scale_to_length(MAX_SPEED)
+        self.position += self.velocity
+        self.acceleration *= 0
+        self.position.x %= WIDTH
+        self.position.y %= HEIGHT
+
+    def apply_behaviors(self, neighbors):
+        align = self.align(neighbors) * alignment_weight[0]
+        cohere = self.cohere(neighbors) * cohesion_weight[0]
+        separate = self.separate(neighbors) * separation_weight[0]
+        self.acceleration += align + cohere + separate
+
+    def apply_flee(self, predator):
+        flee = self.flee(predator) * prey_weight[0]
+        self.acceleration += flee
+
+    def align(self, boids):
+        steering = pygame.math.Vector2()
+        total = 0
+        for b in boids:
+            dist = self.position.distance_to(b.position)
+            if dist < NEIGHBOR_RADIUS and dist > 0:
+                steering += b.velocity
+                total += 1
+        if total > 0:
+            steering /= total
+            steering = steering.normalize() * MAX_SPEED - self.velocity
+        return steering * 0.05
+
+    def cohere(self, boids):
+        steering = pygame.math.Vector2()
+        center = pygame.math.Vector2()
+        total = 0
+        for b in boids:
+            dist = self.position.distance_to(b.position)
+            if dist < NEIGHBOR_RADIUS and dist > 0:
+                center += b.position
+                total += 1
+        if total > 0:
+            center /= total
+            desired = center - self.position
+            desired = desired.normalize() * MAX_SPEED
+            steering = desired - self.velocity
+        return steering * 0.01
+
+    def separate(self, boids):
+        steering = pygame.math.Vector2()
+        total = 0
+        for b in boids:
+            dist = self.position.distance_to(b.position)
+            if dist < SEPARATION_RADIUS and dist > 0:
+                diff = self.position - b.position
+                diff /= dist
+                steering += diff
+                total += 1
+        if total > 0:
+            steering /= total
+            if steering.length() > 0:
+                steering = steering.normalize() * MAX_SPEED - self.velocity
+        return steering * 0.1
     
     def flee(self, boids):
         steering = pygame.math.Vector2()
@@ -159,6 +244,7 @@ def main():
     global PREY_RADIUS
     global prey_weight
     global predator_weight
+    global ID_COUNT
 
     on_off_toggle = Toggle(screen, 10, 10, 30, 10, startOn = False)
 
@@ -202,11 +288,30 @@ def main():
     prey_radius_slider = Slider(screen, 170, 200, 150, 10, min=1, max=300, step=1, initial=100, handleColour=(0, 255, 0))
 
     # boids = [Boid(pos=(random.uniform(0, WIDTH), random.uniform(0, HEIGHT)), angle = random.uniform(0, 2 * math.pi), kind=random.randint(0,1)) for _ in range(NUM_BOIDS)]
+    wolves = [Wolf(pos=(random.normalvariate(mu=WIDTH/4, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT/2, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), ID=i) for i in range(NUM_PREDATORS)]
+    sheep = [Sheep(pos=(random.normalvariate(mu=WIDTH*3/4, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT/2, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), ID=i+NUM_PREDATORS) for i in range(NUM_PREY)]
     boids = []
-    boids.extend([Boid(pos=(random.normalvariate(mu=WIDTH/4, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT/2, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), kind=0) for _ in range(NUM_PREDATORS)])
-    boids.extend([Boid(pos=(random.normalvariate(mu=WIDTH*3/4, sigma=WIDTH/20), random.normalvariate(mu=HEIGHT/2, sigma=HEIGHT/20)), angle = random.uniform(0, 2 * math.pi), kind=1) for _ in range(NUM_PREY)])
+    boids.extend(wolves)
+    boids.extend(sheep)
+    ID_COUNT += len(boids)
+
+    NUM_FRAMES_GRAPH = 180
+    x = np.arange(NUM_FRAMES_GRAPH)
+
+    num_sheep = NUM_PREY * np.ones(NUM_FRAMES_GRAPH)
+    num_wolves = NUM_PREDATORS * np.ones(NUM_FRAMES_GRAPH)
+
+
+    fig, ax = plt.subplots()
+    ax.plot(x, num_sheep)
+    ax.plot(x, num_wolves)
+    # ax.set_ybound((0, NUM_BOIDS_PER_KIND * KINDS_NUM))
+    # ax.set_xbound((0, NUM_FRAMES_GRAPH))
+    fig.show()
+
 
     running = True
+    loop_counter = 0
     while running:
         screen.fill((30, 30, 30))
         events = pygame.event.get()
@@ -214,16 +319,18 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
-        points = [(b.position.x, b.position.y) for b in boids]
+        points = [(boid.position.x, boid.position.y) for boid in boids]
         tree = KDTree(points)
 
         RADIUS = max(NEIGHBOR_RADIUS, SEPARATION_RADIUS, PREDATOR_RADIUS, PREY_RADIUS)
 
+        # in this loop: look at distances and change velocity, position etc
         for i, boid in enumerate(boids):
             if on_off_toggle.getValue():
                 idx = tree.query_ball_point(points[i], RADIUS)
+                # only takes into account neighbours of same kind:
                 neighbors = [boids[j] for j in idx if j != i and boids[j].kind == boid.kind]
-                if boid.kind == 0:
+                if boid.kind == 0: # if wolf:
                     prey = [boids[j] for j in idx if boids[j].kind == 1]
                     boid.apply_hunt(prey)
                 if boid.kind == 1:
@@ -232,6 +339,53 @@ def main():
                 boid.apply_behaviors(neighbors)
                 boid.update()
             boid.draw(screen)
+
+        # here: look at new neighbours and apply eating and reproduction
+        dead_sheep_IDs = []
+        dead_wolf_IDs = []
+        for i, boid in enumerate(boids):
+            if boid.ID in dead_sheep_IDs:
+                continue
+            points = [(boid.position.x, boid.position.y) for boid in boids]
+            idx = tree.query_ball_point(points[i], RADIUS)
+            # only takes into account neighbours of the other kind:
+            neighbors = [boids[j] for j in idx if j != i and boids[j].kind != boid.kind]
+            if boid.kind == 0: # if wolf:
+                # first eat sheep and remove sheep from boids
+                sheep_dead = boid.eat(neighbors)
+                dead_sheep_IDs.extend(sheep_dead)
+                # then check saturation of wolf for reproduction
+                if boid.saturation > wolf_reproduction_sat:
+                    boids.append(Wolf(pos=(random.normalvariate(mu=WIDTH/4, sigma=WIDTH/20),
+                                       random.normalvariate(mu=HEIGHT/2, sigma=HEIGHT/20)),
+                                       angle = random.uniform(0, 2 * math.pi), ID=ID_COUNT))
+                    ID_COUNT += 1
+                    num_wolves[-1] += 1
+                    boid.saturation -= wolf_reproduction_loss
+                # then check for saturation for dying
+                if boid.saturation < wolf_death:
+                    dead_wolf_IDs.append(boid.ID)
+                boid.saturation -= wolf_no_food
+
+            if boid.kind == 1: # if sheep:
+                # check for reproduction
+                if boid.saturation > sheep_reproduction_sat:
+                    boids.append(Sheep(pos=(boid.position),
+                                      angle=random.uniform(0, 2 * math.pi), ID=ID_COUNT))
+                    ID_COUNT += 1
+                    num_sheep[-1] += 1
+                    boid.saturation -= sheep_reproduction_loss
+                boid.saturation += sheep_eats
+
+        num_sheep[-1] -= len(dead_sheep_IDs)
+        num_wolves[-1] -= len(dead_wolf_IDs)
+
+        dead_sheep_IDs.extend(dead_wolf_IDs)
+        dead_sheep_IDs.sort()
+
+        for boid in boids:
+            if boid.ID in dead_sheep_IDs[::-1]:
+                boids.remove(boid)
 
 
         alignment_weight = [alignment_slider.getValue()]
@@ -261,6 +415,17 @@ def main():
         pygame.display.flip()
         clock.tick(60)
 
+        if on_off_toggle.getValue():
+            num_sheep = np.append(num_sheep, num_sheep[-1])[-NUM_FRAMES_GRAPH:]
+            num_wolves = np.append(num_wolves, num_wolves[-1])[-NUM_FRAMES_GRAPH:]
+        if loop_counter % 20 == 0 and on_off_toggle.getValue():
+            ax.clear()
+            ax.plot(x, num_sheep, label='sheep')
+            ax.plot(x, num_wolves, label='wolves')
+            ax.legend()
+            fig.canvas.draw()
+
+        loop_counter += 1
     pygame.quit()
 
 if __name__ == "__main__":
