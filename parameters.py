@@ -1,21 +1,21 @@
-init_sat_wolf = 9e7
+init_sat_wolf = 4e7
 init_sat_sheep = 1e5
 
-wolf_reproduction_sat = 1e8
-sheep_reproduction_sat = 1e10
+wolf_reproduction_sat = 9e8
+sheep_reproduction_sat = 6e6
 
-wolf_reproduction_loss = 1e4
-sheep_reproduction_loss = 1e9
+wolf_reproduction_loss = 5e7
+sheep_reproduction_loss = 1e7
 
-wolf_death = 1e5
-wolf_no_food = 1e2
-wolf_eat_food = 1e5
+wolf_death = 1e7
+wolf_no_food = 5e5
+wolf_eat_food = 9e7
 
-sheep_eats = 1e2
+sheep_eats = 2e4
 
 
-NUM_PREDATORS = 10
-NUM_PREY = 300
+NUM_PREDATORS = 75
+NUM_PREY = 150
 ID_COUNT = 1
 
 WIDTH, HEIGHT = 1000, 800
@@ -24,7 +24,7 @@ NEIGHBOR_RADIUS = 50
 SEPARATION_RADIUS = 20
 PREDATOR_RADIUS = 100
 PREY_RADIUS = 100
-EAT_RADIUS = 5
+EAT_RADIUS = 20
 
 alignment_weight = [1.0]
 cohesion_weight = [1.0]
