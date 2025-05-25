@@ -121,9 +121,11 @@ class Wolf:
 
     def draw(self, screen):
         direction = self.velocity.normalize() * 10
-        pygame.draw.aaline(screen, self.get_color(), (self.position.x, self.position.y),
-                           (self.position.x + direction.x, self.position.y + direction.y))
-        pygame.draw.circle(screen, self.get_color(), (self.position.x, self.position.y), 4)
+        wolf_im = pygame.image.load('wolf.png')
+        screen.blit(wolf_im, (self.position.x, self.position.y))
+        # pygame.draw.aaline(screen, self.get_color(), (self.position.x, self.position.y),
+        #                    (self.position.x + direction.x, self.position.y + direction.y))
+        # pygame.draw.circle(screen, self.get_color(), (self.position.x, self.position.y), 4)
 
 
 class Sheep:
@@ -225,8 +227,11 @@ class Sheep:
 
     def draw(self, screen):
         direction = self.velocity.normalize() * 10
-        pygame.draw.aaline(screen, self.get_color(), (self.position.x, self.position.y), (self.position.x + direction.x, self.position.y + direction.y))
-        pygame.draw.circle(screen, self.get_color(), (self.position.x, self.position.y), 4)
+        #wolf_im = pygame.image.load('wolf.png')
+        sheep_im = pygame.image.load('sheep.png')
+        screen.blit(sheep_im, (self.position.x, self.position.y))
+        # pygame.draw.aaline(screen, self.get_color(), (self.position.x, self.position.y), (self.position.x + direction.x, self.position.y + direction.y))
+        # pygame.draw.circle(screen, self.get_color(), (self.position.x, self.position.y), 4)
 
 # --- Main Loop ---
 
@@ -304,131 +309,132 @@ ID_COUNT += len(boids)
 
 running = True
 loop_counter = 0
-while running:
-    screen.fill((30, 30, 30))
-    events = pygame.event.get()
-    for event in events:
-        if event.type == pygame.QUIT:
-            running = False
+with open(f"popsize.csv", 'w', newline='') as csvfile:
+    while running:
+        screen.fill((30, 30, 30))
+        events = pygame.event.get()
+        for event in events:
+            if event.type == pygame.QUIT:
+                running = False
 
-    points = [(boid.position.x, boid.position.y) for boid in boids]
-    tree = KDTree(points)
-
-    RADIUS = max(NEIGHBOR_RADIUS, SEPARATION_RADIUS, PREDATOR_RADIUS, PREY_RADIUS)
-    num_wolves[-1] = 0
-    num_sheep[-1] = 0
-    # in this loop: look at distances and change velocity, position etc
-    for i, boid in enumerate(boids):
-        if on_off_toggle.getValue():
-            idx = tree.query_ball_point(points[i], RADIUS)
-            # only takes into account neighbours of same kind:
-            neighbors = [boids[j] for j in idx if j != i and boids[j].kind == boid.kind]
-            if boid.kind == 0: # if wolf:
-                num_wolves[-1] += 1
-                prey = [boids[j] for j in idx if boids[j].kind == 1]
-                boid.apply_hunt(prey)
-            if boid.kind == 1:
-                num_sheep[-1] += 1
-                predator = [boids[j] for j in idx if boids[j].kind == 0]
-                boid.apply_flee(predator)
-            boid.apply_behaviors(neighbors)
-            boid.update()
-        boid.draw(screen)
-
-    # here: look at new neighbours and apply eating and reproduction
-    all_dead = []
-    wolf_change = 0
-    sheep_change = 0
-    for i, boid in enumerate(boids):
-        dead_sheep_IDs = []
-        dead_wolf_IDs = []
-        if boid.ID in dead_sheep_IDs:
-            continue
         points = [(boid.position.x, boid.position.y) for boid in boids]
-        idx = tree.query_ball_point(points[i], RADIUS)
-        # only takes into account neighbours of the other kind:
-        neighbors = [boids[j] for j in idx if j != i and boids[j].kind != boid.kind]
-        if boid.kind == 1: # if sheep:
-            # check for reproduction
-            if boid.saturation > sheep_reproduction_sat:
-                boids.append(Sheep(pos=boid.position,
-                                  angle=random.uniform(0, 2 * math.pi), ID=ID_COUNT))
-                ID_COUNT += 1
-                boid.saturation -= sheep_reproduction_loss
-            boid.saturation += sheep_eats
-        if boid.kind == 0: # if wolf:
-            # first eat sheep
-            sheep_dead = boid.eat(neighbors)
-            for x in sheep_dead[-1:]:
-                if x in dead_sheep_IDs:
-                    sheep_dead.remove(x)
-            dead_sheep_IDs.extend(sheep_dead)
-            # then check saturation of wolf for reproduction
-            if boid.saturation > wolf_reproduction_sat:
-                boids.append(Wolf(pos=boid.position,
-                                   angle = random.uniform(0, 2 * math.pi), ID=ID_COUNT))
-                ID_COUNT += 1
-                boid.saturation -= wolf_reproduction_loss
-            # then check for saturation for dying
-            if boid.saturation < wolf_death:
-                dead_wolf_IDs.append(boid.ID)
-            boid.saturation -= wolf_no_food
+        tree = KDTree(points)
+
+        RADIUS = max(NEIGHBOR_RADIUS, SEPARATION_RADIUS, PREDATOR_RADIUS, PREY_RADIUS)
+        num_wolves[-1] = 0
+        num_sheep[-1] = 0
+        # in this loop: look at distances and change velocity, position etc
+        for i, boid in enumerate(boids):
+            if on_off_toggle.getValue():
+                idx = tree.query_ball_point(points[i], RADIUS)
+                # only takes into account neighbours of same kind:
+                neighbors = [boids[j] for j in idx if j != i and boids[j].kind == boid.kind]
+                if boid.kind == 0: # if wolf:
+                    num_wolves[-1] += 1
+                    prey = [boids[j] for j in idx if boids[j].kind == 1]
+                    boid.apply_hunt(prey)
+                if boid.kind == 1:
+                    num_sheep[-1] += 1
+                    predator = [boids[j] for j in idx if boids[j].kind == 0]
+                    boid.apply_flee(predator)
+                boid.apply_behaviors(neighbors)
+                boid.update()
+            boid.draw(screen)
+
+        # here: look at new neighbours and apply eating and reproduction
+        all_dead = []
+        wolf_change = 0
+        sheep_change = 0
+        for i, boid in enumerate(boids):
+            dead_sheep_IDs = []
+            dead_wolf_IDs = []
+            if boid.ID in dead_sheep_IDs:
+                continue
+            points = [(boid.position.x, boid.position.y) for boid in boids]
+            idx = tree.query_ball_point(points[i], RADIUS)
+            # only takes into account neighbours of the other kind:
+            neighbors = [boids[j] for j in idx if j != i and boids[j].kind != boid.kind]
+            if boid.kind == 1: # if sheep:
+                # check for reproduction
+                if boid.saturation > sheep_reproduction_sat:
+                    boids.append(Sheep(pos=boid.position,
+                                      angle=random.uniform(0, 2 * math.pi), ID=ID_COUNT))
+                    ID_COUNT += 1
+                    boid.saturation -= sheep_reproduction_loss
+                boid.saturation += sheep_eats
+            if boid.kind == 0: # if wolf:
+                # first eat sheep
+                sheep_dead = boid.eat(neighbors)
+                for x in sheep_dead[-1:]:
+                    if x in dead_sheep_IDs:
+                        sheep_dead.remove(x)
+                dead_sheep_IDs.extend(sheep_dead)
+                # then check saturation of wolf for reproduction
+                if boid.saturation > wolf_reproduction_sat:
+                    boids.append(Wolf(pos=boid.position,
+                                       angle = random.uniform(0, 2 * math.pi), ID=ID_COUNT))
+                    ID_COUNT += 1
+                    boid.saturation -= wolf_reproduction_loss
+                # then check for saturation for dying
+                if boid.saturation < wolf_death:
+                    dead_wolf_IDs.append(boid.ID)
+                boid.saturation -= wolf_no_food
 
 
-        all_dead.extend(dead_wolf_IDs)
-        all_dead.extend(dead_sheep_IDs)
-    #exit loop and change the amount of sheep and wolves
+            all_dead.extend(dead_wolf_IDs)
+            all_dead.extend(dead_sheep_IDs)
+        #exit loop and change the amount of sheep and wolves
 
-    all_dead.sort()
+        all_dead.sort()
 
-    for boid in boids:
-        if boid.ID in all_dead[::-1]:
-            boids.remove(boid)
-
-
-    alignment_weight = [alignment_slider.getValue()]
-    cohesion_weight = [cohesion_slider.getValue()]
-    separation_weight = [separation_slider.getValue()]
-    NEIGHBOR_RADIUS = neighbor_radius_slider.getValue()
-    SEPARATION_RADIUS = separation_radius_slider.getValue()
-
-    alignment_text.setText(f'Alignment {alignment_weight[0]:.1f}')
-    cohesion_text.setText(f'Cohesion {cohesion_weight[0]:.1f}')
-    separation_text.setText(f'Separation {separation_weight[0]:.1f}')
-    neighbor_radius_text.setText(f'Neigh_radius {NEIGHBOR_RADIUS}')
-    separation_radius_text.setText(f'Sep_radius {SEPARATION_RADIUS}')
-    frames_text.setText(f'FPS {clock.get_fps():.1f}')
-
-    predator_weight = [predator_slider.getValue()]
-    predator_text.setText(f'Hunt {predator_weight[0]:.1f}')
-    PREDATOR_RADIUS = predator_radius_slider.getValue()
-    predator_radius_text.setText(f'Hunt_radius {PREDATOR_RADIUS}')
-
-    prey_weight = [prey_slider.getValue()]
-    prey_text.setText(f'Flee {prey_weight[0]:.1f}')
-    PREY_RADIUS = prey_radius_slider.getValue()
-    prey_radius_text.setText(f'Flee_radius {PREY_RADIUS}')
-
-    num_sheep = np.append(num_sheep, num_sheep[-1])[-NUM_FRAMES_GRAPH:]
-    num_wolves = np.append(num_wolves, num_wolves[-1])[-NUM_FRAMES_GRAPH:]
-    x = np.arange(NUM_FRAMES_GRAPH)
-
-    if loop_counter % 10 == 0 and on_off_toggle.getValue():
-        ax.clear()
-        ax.plot(x, num_sheep, label='sheep')
-        ax.plot(x, num_wolves, label='wolves')
-        ax.legend()
-        fig.canvas.draw()
-        # Here is the option to track pop size and save
-        # with open(f"popsize.csv", 'w', newline='') as csvfile:
-        #     writer = csv.writer(csvfile)
-        #     writer.writerow([float(num_sheep[-1]), float(num_wolves[-1])])
+        for boid in boids:
+            if boid.ID in all_dead[::-1]:
+                boids.remove(boid)
 
 
-    pygame_widgets.update(events)
-    pygame.display.flip()
-    clock.tick(60)
-    loop_counter += 1
+        alignment_weight = [alignment_slider.getValue()]
+        cohesion_weight = [cohesion_slider.getValue()]
+        separation_weight = [separation_slider.getValue()]
+        NEIGHBOR_RADIUS = neighbor_radius_slider.getValue()
+        SEPARATION_RADIUS = separation_radius_slider.getValue()
+
+        alignment_text.setText(f'Alignment {alignment_weight[0]:.1f}')
+        cohesion_text.setText(f'Cohesion {cohesion_weight[0]:.1f}')
+        separation_text.setText(f'Separation {separation_weight[0]:.1f}')
+        neighbor_radius_text.setText(f'Neigh_radius {NEIGHBOR_RADIUS}')
+        separation_radius_text.setText(f'Sep_radius {SEPARATION_RADIUS}')
+        frames_text.setText(f'FPS {clock.get_fps():.1f}')
+
+        predator_weight = [predator_slider.getValue()]
+        predator_text.setText(f'Hunt {predator_weight[0]:.1f}')
+        PREDATOR_RADIUS = predator_radius_slider.getValue()
+        predator_radius_text.setText(f'Hunt_radius {PREDATOR_RADIUS}')
+
+        prey_weight = [prey_slider.getValue()]
+        prey_text.setText(f'Flee {prey_weight[0]:.1f}')
+        PREY_RADIUS = prey_radius_slider.getValue()
+        prey_radius_text.setText(f'Flee_radius {PREY_RADIUS}')
+
+        num_sheep = np.append(num_sheep, num_sheep[-1])[-NUM_FRAMES_GRAPH:]
+        num_wolves = np.append(num_wolves, num_wolves[-1])[-NUM_FRAMES_GRAPH:]
+        x = np.arange(NUM_FRAMES_GRAPH)
+
+        if loop_counter % 10 == 0: #2 and on_off_toggle.getValue():
+            ax.clear()
+            ax.plot(x, num_sheep, label='sheep')
+            ax.plot(x, num_wolves, label='wolves')
+            ax.legend()
+            fig.canvas.draw()
+            # Here is the option to track pop size and save
+
+            writer = csv.writer(csvfile)
+            writer.writerow([float(num_sheep[-1]), float(num_wolves[-1])])
+
+
+        pygame_widgets.update(events)
+        pygame.display.flip()
+        clock.tick(60)
+        loop_counter += 1
 
 
 

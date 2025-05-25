@@ -7,7 +7,7 @@ sheep_reproduction_sat = 7e6
 wolf_reproduction_loss = 5e7
 sheep_reproduction_loss = 1e7
 
-wolf_death = 5e7
+wolf_death = 3e7
 wolf_no_food = 5e5
 wolf_eat_food = 9e7
 
@@ -15,7 +15,7 @@ sheep_eats = 2e4
 
 
 NUM_PREDATORS = 75
-NUM_PREY = 150
+NUM_PREY = 100
 ID_COUNT = 1
 
 WIDTH, HEIGHT = 1000, 800
