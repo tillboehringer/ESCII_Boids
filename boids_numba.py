@@ -1,3 +1,18 @@
+"""
+boids_numba.py
+
+This file implements a boid simulation using the Numba library to accelerate computations.
+
+Numba is a Just-In-Time (JIT) compiler for Python that translates a subset of Python and NumPy code into fast machine code.
+It is particularly well-suited for numerical computations and loops, making it ideal for simulations like this one.
+
+In this project, Numba is used to:
+- Accelerate the update logic for boids by compiling the `update_boids` function to machine code.
+- Enable parallel execution of loops using the `prange` construct, which distributes work across multiple CPU cores.
+
+The result is a significant performance improvement, allowing the simulation to handle thousands of boids in real-time.
+"""
+
 import pygame
 import random
 import math
@@ -17,17 +32,14 @@ SEPARATION_RADIUS = 20
 inertia = 0.9
 
 alignment_weight = 1.0
-cohesion_weight = 1.5
-separation_weight = 1.0
+cohesion_weight = 1.0
+separation_weight = 0.5
+
 
 @njit(parallel=True)
 def update_boids(positions, velocities):
     """
     This function calculates the new velocities for all boids based on three main behaviors:
-    - Alignment: Boids align their velocity with nearby boids.
-    - Cohesion: Boids move towards the center of mass of nearby boids.
-    - Separation: Boids avoid getting too close to others.
-
     Numba's @njit decorator with parallel=True enables Just-In-Time (JIT) compilation and parallel execution,
     significantly improving performance for large arrays and loops. This is crucial for real-time simulation
     with thousands of boids.
@@ -160,7 +172,7 @@ def main():
 
         # Draw boids
         for pos in positions:
-            pygame.draw.circle(screen, (255, 255, 255), (int(pos[0]), int(pos[1])), 3)
+            pygame.draw.circle(screen, (255, 255, 255), (int(pos[0]), int(pos[1])), 2)
 
         # Display FPS
         fps = clock.get_fps()

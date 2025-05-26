@@ -1,6 +1,8 @@
 import taichi as ti
 import math
 
+""" To monitor AMD GPU Traffic: "sudo intel_gpu_top" """
+
 # Taichi Documentation: https://docs.taichi-lang.org/docs/tutorial
 
 # For the next improvement approach, we want to use the powerhouse of our computer - the GPU.
@@ -9,7 +11,10 @@ import math
 # where thousands of boids need to be updated simultaneously.
 ti.init(arch=ti.gpu)
 
-WIDTH, HEIGHT = 1600, 1000
+
+
+WIDTH, HEIGHT = 800, 600
+# NUM_BOIDS = 10000 
 NUM_BOIDS = 20000 
 MAX_SPEED = 4.0  
 NEIGHBOR_RADIUS = 50.0  
@@ -77,7 +82,7 @@ def build_grid():
     for i in range(NUM_BOIDS):
         pos = positions[i]
         cell_x = int(pos.x // CELL_SIZE)  # Determine the x-coordinate of the grid cell
-        cell_y = int(pos.y // CELL_SIZE)  # Determine the y-coordinate of the grid cell
+        cell_y = int(pos.y // CELL_SIZE) 
 
         # Clamp the cell indices to ensure they are within the grid bounds
         cell_x = min(max(cell_x, 0), GRID_SIZE_X - 1)
